@@ -6,9 +6,9 @@ import (
 	"strings"
 	"text/template"
 
-	log "github.com/sirupsen/logrus"
 	gogen "github.com/gogo/protobuf/protoc-gen-gogo/generator"
 	"github.com/pkg/errors"
+	log "github.com/sirupsen/logrus"
 )
 
 type protoInfo struct {
@@ -49,7 +49,24 @@ func Do(pkg string) int {
 	pinfo := protoInfo{
 		alias: pkg,
 	}
-	if _, err := os.Stat(pinfo.FileName()); err == nil {
+
+	path := pkg
+	if _, err := os.Stat(path); os.IsNotExist(err) {
+		err := os.Mkdir(path, os.ModeDir)
+		if err != nil {
+			log.Error(err)
+			return 1
+		}
+		log.Info("create dir successfully")
+	}
+
+	if err := os.Chdir(pkg); err != nil {
+		log.Error(err)
+		return 1
+	}
+
+	fileName := pinfo.FileName()
+	if _, err := os.Stat(fileName); err == nil {
 		existingFile, err := renderTemplate("existingFileMsg", existingFileMsg, pinfo)
 		if err != nil {
 			log.Error(err)
@@ -58,13 +75,13 @@ func Do(pkg string) int {
 		log.Error(string(existingFile))
 		return 1
 	}
-	f, err := os.Create(pinfo.FileName())
+	f, err := os.Create(fileName)
 	if err != nil {
 		log.Error(errors.Wrapf(err, "cannot create %q", pinfo.FileName()))
 		return 1
 	}
 
-	code, err := renderTemplate(pinfo.FileName(), starterProto, pinfo)
+	code, err := renderTemplate(fileName, starterProto, pinfo)
 	if err != nil {
 		log.Error(err)
 		return 1
