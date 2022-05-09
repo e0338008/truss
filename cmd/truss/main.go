@@ -31,6 +31,7 @@ var (
 	noFolderFlag   = flag.BoolP("nofolder", "n", false, "no extra folder")
 	helpFlag       = flag.BoolP("help", "h", false, "Print usage")
 	getStartedFlag = flag.BoolP("getstarted", "", false, "Output a 'getstarted.proto' protobuf file in ./")
+	forceRegenFlag = flag.BoolP("force", "f", false, "Regen the file. This will force regen all the files")
 )
 
 var binName = filepath.Base(os.Args[0])
@@ -125,6 +126,7 @@ func main() {
 		if err != nil {
 			log.Fatal(errors.Wrap(err, "cannot to write output"))
 		}
+		log.Println("writeGenFile: ", path)
 	}
 
 	cleanupOldFiles(cfg.ServicePath, strings.ToLower(sd.Service.Name))
@@ -257,6 +259,10 @@ func parseServiceDefinition(cfg *truss.Config) (*svcdef.Svcdef, error) {
 		}
 	}
 
+	if *forceRegenFlag {
+		cfg.ForceRegen = true
+	}
+
 	// Get path names of .pb.go files
 	pbgoPaths := []string{}
 	for _, p := range protoDefPaths {
@@ -295,7 +301,7 @@ func generateCode(cfg *truss.Config, sd *svcdef.Svcdef) (map[string]io.Reader, e
 		VersionDate:   date,
 	}
 
-	genGokitFiles, err := gengokit.GenerateGokit(sd, conf)
+	genGokitFiles, err := gengokit.GenerateGokit(sd, conf, cfg.ForceRegen)
 	if err != nil {
 		return nil, errors.Wrap(err, "cannot generate gokit service")
 	}
@@ -365,6 +371,8 @@ func readPreviousGeneration(serviceDir string) (map[string]io.Reader, error) {
 	}
 
 	const handlersDirName = "handlers"
+	const cmdDirName = "cmd"
+	const svcDirName = "svc"
 	files := make(map[string]io.Reader)
 
 	addFileToFiles := func(path string, info os.FileInfo, err error) error {
@@ -372,8 +380,9 @@ func readPreviousGeneration(serviceDir string) (map[string]io.Reader, error) {
 			switch info.Name() {
 			// Only files within the handlers dir are used to
 			// support regeneration.
+			// File within cmd and svc dir might be skipped
 			// See `gengokit/generator/gen.go:generateResponseFile`
-			case filepath.Base(serviceDir), handlersDirName:
+			case filepath.Base(serviceDir), handlersDirName, cmdDirName, svcDirName:
 				return nil
 			default:
 				return filepath.SkipDir

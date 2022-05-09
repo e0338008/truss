@@ -18,10 +18,17 @@ import (
 	"github.com/metaverse/truss/svcdef"
 )
 
+var (
+	regenSkipFile = map[string]bool{
+		"svc/config.go": true,
+		"cmd/main.go":   true,
+	}
+)
+
 // GenerateGokit returns a gokit service generated from a service definition (svcdef),
 // the package to the root of the generated service goPackage, the package
 // to the .pb.go service struct files (goPBPackage) and any prevously generated files.
-func GenerateGokit(sd *svcdef.Svcdef, conf gengokit.Config) (map[string]io.Reader, error) {
+func GenerateGokit(sd *svcdef.Svcdef, conf gengokit.Config, forceRegen bool) (map[string]io.Reader, error) {
 	data, err := gengokit.NewData(sd, conf)
 	if err != nil {
 		return nil, errors.Wrap(err, "cannot create template data")
@@ -35,11 +42,14 @@ func GenerateGokit(sd *svcdef.Svcdef, conf gengokit.Config) (map[string]io.Reade
 		// Re-derive the actual path for this file based on the service output
 		// path provided by the truss main.go
 		actualPath := templatePathToActual(templPath, svcname)
+		if _, exist := conf.PreviousFiles[actualPath]; !forceRegen && exist && regenSkipFile[actualPath] {
+			log.Println("skip file regen: ", actualPath)
+			continue
+		}
 		file, err := generateResponseFile(templPath, data, conf.PreviousFiles[actualPath])
 		if err != nil {
 			return nil, errors.Wrap(err, "cannot render template")
 		}
-
 		codeGenFiles[actualPath] = file
 	}
 

@@ -18,4 +18,6 @@ type Config struct {
 	DefPaths []string
 	// The files of a previously generated service, may be nil
 	PrevGen map[string]io.Reader
+	// if force regen all the files include main.go and config.go
+	ForceRegen bool
 }
