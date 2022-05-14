@@ -12,6 +12,8 @@ import (
 	"google.golang.org/grpc/metadata"
 	"github.com/pkg/errors"
 
+    "github.com/afex/hystrix-go/hystrix"
+    "github.com/go-kit/kit/circuitbreaker"
 	"github.com/go-kit/kit/endpoint"
 	grpctransport "github.com/go-kit/kit/transport/grpc"
 
@@ -19,6 +21,50 @@ import (
 	"{{.ImportPath -}} /svc"
 	pb "{{.PBImportPath -}}"
 )
+
+// NewWithCB returns an service backed by a gRPC client connection with circuit breaker.
+// It is the responsibility of the caller to dial, and later close, the connection.
+func NewWithCB(conn *grpc.ClientConn, cbConfig hystrix.CommandConfig, options ...ClientOption) (pb.{{.Service.Name}}Server, error) {
+	var cc clientConfig
+
+	for _, f := range options {
+		err := f(&cc)
+		if err != nil {
+			return nil, errors.Wrap(err, "cannot apply option")
+		}
+	}
+
+	clientOptions := []grpctransport.ClientOption{
+		grpctransport.ClientBefore(
+			contextValuesToGRPCMetadata(cc.headers)),
+	}
+	{{- with $te := .}}
+		{{- with $pkgName := $te.PackageName}}
+			{{- range $i := $te.Service.Methods}}
+				var {{ToLower $i.Name}}Endpoint endpoint.Endpoint
+				{
+					{{ToLower $i.Name}}Endpoint = grpctransport.NewClient(
+						conn,
+						"{{$pkgName}}.{{$te.Service.Name}}",
+						"{{$i.Name}}",
+						EncodeGRPC{{$i.Name}}Request,
+						DecodeGRPC{{$i.Name}}Response,
+						pb.{{GoName $i.ResponseType.Name}}{},
+						clientOptions...,
+					).Endpoint()
+					hystrix.ConfigureCommand("{{$i.Name}}", cbConfig)
+					{{ToLower $i.Name}}Endpoint = circuitbreaker.Hystrix("{{$i.Name}}")({{ToLower $i.Name}}Endpoint)
+				}
+			{{end}}
+		{{end}}
+	{{end}}
+
+	return svc.Endpoints{
+	{{range $i := .Service.Methods -}}
+		{{$i.Name}}Endpoint:    {{ToLower $i.Name}}Endpoint,
+	{{end}}
+	}, nil
+}
 
 // New returns an service backed by a gRPC client connection. It is the
 // responsibility of the caller to dial, and later close, the connection.

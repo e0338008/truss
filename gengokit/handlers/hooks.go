@@ -38,7 +38,8 @@ type HookRender struct {
 //     3. Add the SetConfig function if it doesn't exist already
 func (h *HookRender) Render(_ string, data *gengokit.Data) (io.Reader, error) {
 	if h.prev == nil {
-		return data.ApplyTemplate(templates.Hook+templates.HookInterruptHandler+templates.HookSetConfig, "HooksFullTemplate")
+		return data.ApplyTemplate(templates.Hook+templates.HookInterruptHandler+templates.HookSetConfig+templates.PreRunInitConfig,
+			"HooksFullTemplate")
 	}
 	rawprev, err := ioutil.ReadAll(h.prev)
 	if err != nil {
@@ -74,6 +75,7 @@ func (h *HookRender) Render(_ string, data *gengokit.Data) (io.Reader, error) {
 	hookFuncs := map[string]string{
 		"InterruptHandler": templates.HookInterruptHandler,
 		"SetConfig":        templates.HookSetConfig,
+		"PreRunInit":       templates.PreRunInitConfig,
 	}
 
 	for name, f := range hookFuncs {

@@ -29,3 +29,10 @@ func SetConfig(cfg svc.Config) svc.Config {
 	return cfg
 }
 `
+
+const PreRunInitConfig = `
+func PreRunInit(cfg svc.Config) error {
+	// Add your server pre run handling here
+	return nil
+}
+`

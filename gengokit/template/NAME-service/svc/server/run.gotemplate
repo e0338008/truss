@@ -86,6 +86,13 @@ func Run(cfg svc.Config) {
 	// Interrupt handler.
 	go handlers.InterruptHandler(errc)
 
+	// PreRunInit for server run
+	err := handlers.PreRunInit(cfg)
+	if err != nil {
+		log.Println("Err while pre run init", err)
+		panic(err)
+	}
+
 	// Debug listener.
 	go func() {
 		log.Println("transport", "debug", "addr", cfg.DebugAddr)

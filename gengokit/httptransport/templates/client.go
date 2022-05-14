@@ -125,6 +125,8 @@ import (
 		"github.com/gogo/protobuf/jsonpb"
 	{{- end }}
 
+    "github.com/afex/hystrix-go/hystrix"
+    "github.com/go-kit/kit/circuitbreaker"
 	"github.com/go-kit/kit/endpoint"
 	httptransport "github.com/go-kit/kit/transport/http"
 	"github.com/pkg/errors"
@@ -142,6 +144,55 @@ var (
 	_ = ioutil.NopCloser
 	_ = io.EOF
 )
+
+// NewWithCB returns a service backed by an HTTP server living at the remote
+// instance with circuit breaker. We expect instance to come from a service discovery system,
+// so likely of the form "host:port".
+func NewWithCB(instance string, cbConfig hystrix.CommandConfig, options ...httptransport.ClientOption) (pb.{{.Service.Name}}Server, error) {
+
+	if !strings.HasPrefix(instance, "http") {
+		instance = "http://" + instance
+	}
+	u, err := url.Parse(instance)
+	if err != nil {
+		return nil, err
+	}
+	_ = u
+
+	{{if not .HTTPHelper.Methods -}}
+		panic("No HTTP Endpoints, this client will not work, define bindings in your proto definition")
+	{{- end}}
+
+	{{range $method := .HTTPHelper.Methods}}
+		{{ if $method.Bindings -}}
+			{{ with $binding := index $method.Bindings 0 -}}
+				var {{$binding.Label}}Endpoint endpoint.Endpoint
+				{
+					{{$binding.Label}}Endpoint = httptransport.NewClient(
+						"{{$binding.Verb | ToUpper}}",
+						copyURL(u, "{{$binding.BasePath}}"),
+						EncodeHTTP{{$binding.Label}}Request,
+						DecodeHTTP{{$method.Name}}Response,
+						options...,
+					).Endpoint()
+					hystrix.ConfigureCommand("{{$method.Name}}", cbConfig)
+					{{$binding.Label}}Endpoint = circuitbreaker.Hystrix("{{$method.Name}}")({{$binding.Label}}Endpoint)
+				}
+			{{- end}}
+		{{- end}}
+	{{- end}}
+
+	return svc.Endpoints{
+	{{range $method := .HTTPHelper.Methods -}}
+		{{ if $method.Bindings -}}
+			{{ with $binding := index $method.Bindings 0 -}}
+				{{$method.Name}}Endpoint:    {{$binding.Label}}Endpoint,
+			{{end}}
+		{{- end}}
+	{{- end}}
+	}, nil
+}
+
 
 // New returns a service backed by an HTTP server living at the remote
 // instance. We expect instance to come from a service discovery system, so
