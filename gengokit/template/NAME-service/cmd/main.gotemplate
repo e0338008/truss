@@ -17,8 +17,8 @@ func main() {
 	// Update addresses if they have been overwritten by flags
 	flag.Parse()
 
-	cfg := server.DefaultConfig
-	cfg = handlers.SetConfig(cfg)
+	cfg := server.AppConfig
+	handlers.SetConfig(cfg)
 
 	server.Run(cfg)
 }

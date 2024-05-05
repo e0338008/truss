@@ -24,14 +24,15 @@ func InterruptHandler(errc chan<- error) {
 	errc <- terminateError
 }
 `
+
 const HookSetConfig = `
-func SetConfig(cfg svc.Config) svc.Config {
-	return cfg
+func SetConfig(cfg *svc.Config) {
+	//load you config here
 }
 `
 
 const PreRunInitConfig = `
-func PreRunInit(cfg svc.Config) error {
+func PreRunInit(cfg *svc.Config) error {
 	// Add your server pre run handling here
 	return nil
 }

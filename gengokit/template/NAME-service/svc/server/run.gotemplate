@@ -23,25 +23,25 @@ import (
 	"{{.ImportPath -}} /handlers"
 )
 
-var DefaultConfig svc.Config
+var AppConfig = &svc.Config{}
 
 func init() {
-	flag.StringVar(&DefaultConfig.DebugAddr, "debug.addr", ":5060", "Debug and metrics listen address")
-	flag.StringVar(&DefaultConfig.HTTPAddr, "http.addr", ":5050", "HTTP listen address")
-	flag.StringVar(&DefaultConfig.GRPCAddr, "grpc.addr", ":5040", "gRPC (HTTP) listen address")
+	flag.StringVar(&AppConfig.DebugAddr, "debug.addr", ":5060", "Debug and metrics listen address")
+	flag.StringVar(&AppConfig.HTTPAddr, "http.addr", ":5050", "HTTP listen address")
+	flag.StringVar(&AppConfig.GRPCAddr, "grpc.addr", ":5040", "gRPC (HTTP) listen address")
 
 	// Use environment variables, if set. Flags have priority over Env vars.
 	if addr := os.Getenv("DEBUG_ADDR"); addr != "" {
-		DefaultConfig.DebugAddr = addr
+		AppConfig.DebugAddr = addr
 	}
 	if port := os.Getenv("PORT"); port != "" {
-		DefaultConfig.HTTPAddr = fmt.Sprintf(":%s", port)
+		AppConfig.HTTPAddr = fmt.Sprintf(":%s", port)
 	}
 	if addr := os.Getenv("HTTP_ADDR"); addr != "" {
-		DefaultConfig.HTTPAddr = addr
+		AppConfig.HTTPAddr = addr
 	}
 	if addr := os.Getenv("GRPC_ADDR"); addr != "" {
-		DefaultConfig.GRPCAddr = addr
+		AppConfig.GRPCAddr = addr
 	}
 }
 
@@ -72,7 +72,7 @@ func NewEndpoints(service pb.{{.Service.Name}}Server) svc.Endpoints {
 
 // Run starts a new http server, gRPC server, and a debug server with the
 // passed config and logger
-func Run(cfg svc.Config) {
+func Run(cfg *svc.Config) {
 	service := handlers.NewService()
 	endpoints := NewEndpoints(service)
 

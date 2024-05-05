@@ -28,7 +28,7 @@ import (
 var (
 	svcPackageFlag = flag.String("svcout", "", "Go package path where the generated Go service will be written. Trailing slash will create a NAME-service directory")
 	verboseFlag    = flag.BoolP("verbose", "v", false, "Verbose output")
-	noFolderFlag   = flag.BoolP("nofolder", "n", false, "no extra folder")
+	inFolderFlag   = flag.BoolP("infolder", "n", false, "no extra folder")
 	helpFlag       = flag.BoolP("help", "h", false, "Print usage")
 	getStartedFlag = flag.BoolP("getstarted", "", false, "Output a 'getstarted.proto' protobuf file in ./")
 	forceRegenFlag = flag.BoolP("force", "f", false, "Regen the file. This will force regen all the files")
@@ -178,9 +178,9 @@ func parseInput() (*truss.Config, error) {
 
 	svcName = strings.ToLower(svcName)
 
-	svcDirName := svcName + "-service"
-	if *noFolderFlag {
-		svcDirName = ""
+	svcDirName := ""
+	if *inFolderFlag {
+		svcDirName = svcName + "-service"
 	}
 
 	log.WithField("svcDirName", svcDirName).Debug()
@@ -210,7 +210,7 @@ func parseInput() (*truss.Config, error) {
 	log.WithField("svcPath", svcPath).Debug()
 
 	// Create svcPath for the case that it does not exist
-	err = os.MkdirAll(svcPath, 0777)
+	err = os.MkdirAll(svcPath, 0o777)
 	if err != nil {
 		return nil, errors.Wrapf(err, "cannot create svcPath directory: %s", svcPath)
 	}
@@ -253,7 +253,7 @@ func parseServiceDefinition(cfg *truss.Config) (*svcdef.Svcdef, error) {
 	protoDefPaths := cfg.DefPaths
 	// Create the ServicePath so the .pb.go files may be place within it
 	if cfg.PrevGen == nil {
-		err := os.MkdirAll(cfg.ServicePath, 0777)
+		err := os.MkdirAll(cfg.ServicePath, 0o777)
 		if err != nil {
 			return nil, errors.Wrap(err, "cannot create service directory")
 		}
@@ -323,7 +323,7 @@ func openFiles(paths []string) (map[string]io.Reader, error) {
 
 // writeGenFile writes a file at path to the filesystem
 func writeGenFile(file io.Reader, path string) error {
-	err := os.MkdirAll(filepath.Dir(path), 0777)
+	err := os.MkdirAll(filepath.Dir(path), 0o777)
 	if err != nil {
 		return err
 	}
